@@ -1,6 +1,7 @@
 package route
 
 import (
+	"fmt"
 	"net/url"
 	"strings"
 
@@ -64,25 +65,64 @@ func (t *Target) BuildRedirectURL(requestURL *url.URL) {
 		Scheme:   t.URL.Scheme,
 		Host:     t.URL.Host,
 		Path:     t.URL.Path,
+		RawPath:  t.URL.RawPath,
 		RawQuery: t.URL.RawQuery,
 	}
+	// if the target has no rawpath, but the request does, we have to set the
+	// redirectURL's rawpath manually
+	if t.RedirectURL.RawPath == "" && requestURL.RawPath != "" {
+		t.RedirectURL.RawPath = t.RedirectURL.Path
+	}
+	// treat case of $path not separated with a / from host
 	if strings.HasSuffix(t.RedirectURL.Host, "$path") {
 		t.RedirectURL.Host = t.RedirectURL.Host[:len(t.RedirectURL.Host)-len("$path")]
 		t.RedirectURL.Path = "$path"
 	}
+
+	// remove / before $path in redirect url
 	if strings.Contains(t.RedirectURL.Path, "/$path") {
 		t.RedirectURL.Path = strings.Replace(t.RedirectURL.Path, "/$path", "$path", 1)
 	}
+	if strings.Contains(t.RedirectURL.RawPath, "/$path") {
+		t.RedirectURL.RawPath = strings.Replace(t.RedirectURL.RawPath, "/$path", "$path", 1)
+	}
+	// insert passed request path into redirect path, strip decoded strippath, set query
 	if strings.Contains(t.RedirectURL.Path, "$path") {
 		t.RedirectURL.Path = strings.Replace(t.RedirectURL.Path, "$path", requestURL.Path, 1)
-		if t.StripPath != "" && strings.HasPrefix(t.RedirectURL.Path, t.StripPath) {
-			t.RedirectURL.Path = t.RedirectURL.Path[len(t.StripPath):]
+		if t.StripPath != "" {
+			// parse stripPath for not raw path
+			parsedStripPath, _ := url.Parse(t.StripPath)
+			decodedStripPath := parsedStripPath.Path
+			if strings.HasPrefix(t.RedirectURL.Path, decodedStripPath) {
+				t.RedirectURL.Path = t.RedirectURL.Path[len(decodedStripPath):]
+			}
 		}
 		if t.RedirectURL.RawQuery == "" && requestURL.RawQuery != "" {
 			t.RedirectURL.RawQuery = requestURL.RawQuery
 		}
 	}
+	// insert passed request path into redirect rawpath
+	if strings.Contains(t.RedirectURL.RawPath, "$path") {
+		var replaceRawPath string
+		if requestURL.RawPath == "" {
+			replaceRawPath = requestURL.Path
+		} else {
+			replaceRawPath = requestURL.RawPath
+		}
+		t.RedirectURL.RawPath = strings.Replace(t.RedirectURL.RawPath, "$path", replaceRawPath, 1)
+		if t.StripPath != "" && strings.HasPrefix(t.RedirectURL.RawPath, t.StripPath) {
+			t.RedirectURL.RawPath = t.RedirectURL.RawPath[len(t.StripPath):]
+		}
+	}
 	if t.RedirectURL.Path == "" {
 		t.RedirectURL.Path = "/"
+	}
+	if t.URL.Host == "monkey.com" {
+		fmt.Printf("StripPath: %s\n", t.StripPath)
+		fmt.Printf("request - host: %s, path: %s, rawpath: %s\n", requestURL.Host, requestURL.Path, requestURL.RawPath)
+		fmt.Printf("target - host: %s, path: %s, rawpath: %s\n", t.URL.Host, t.URL.Path, t.URL.RawPath)
+		fmt.Printf("constructed - host: %s, path: %s, rawpath: %s\n", t.RedirectURL.Host, t.RedirectURL.Path, t.RedirectURL.RawPath)
+		fmt.Printf("redirecturl: %s\n", t.RedirectURL.String())
+		fmt.Println("###")
 	}
 }

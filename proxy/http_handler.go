@@ -17,6 +17,7 @@ func newHTTPProxy(target *url.URL, tr http.RoundTripper, flush time.Duration) ht
 			req.URL.Scheme = target.Scheme
 			req.URL.Host = target.Host
 			req.URL.Path = target.Path
+			req.URL.RawPath = target.RawPath
 			req.URL.RawQuery = target.RawQuery
 			if _, ok := req.Header["User-Agent"]; !ok {
 				// explicitly disable User-Agent so it's not set to default value

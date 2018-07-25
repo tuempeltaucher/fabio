@@ -96,6 +96,7 @@ func (p *HTTPProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Scheme:   scheme(r),
 		Host:     r.Host,
 		Path:     r.URL.Path,
+		RawPath:  r.URL.RawPath,
 		RawQuery: r.URL.RawQuery,
 	}
 
@@ -113,6 +114,7 @@ func (p *HTTPProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		Scheme: t.URL.Scheme,
 		Host:   t.URL.Host,
 		Path:   r.URL.Path,
+		RawPath:  r.URL.RawPath,
 	}
 	if t.URL.RawQuery == "" || r.URL.RawQuery == "" {
 		targetURL.RawQuery = t.URL.RawQuery + r.URL.RawQuery
@@ -133,6 +135,9 @@ func (p *HTTPProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if t.StripPath != "" && strings.HasPrefix(r.URL.Path, t.StripPath) {
 		targetURL.Path = targetURL.Path[len(t.StripPath):]
 	}
+        if t.StripPath != "" && strings.HasPrefix(r.URL.RawPath, t.StripPath) {
+		targetURL.RawPath = targetURL.RawPath[len(t.StripPath):]
+        }
 
 	if err := addHeaders(r, p.Config, t.StripPath); err != nil {
 		http.Error(w, "cannot parse "+r.RemoteAddr, http.StatusInternalServerError)
